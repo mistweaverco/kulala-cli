@@ -1,0 +1,15 @@
+###
+
+GET https://echo.getkulala.net/get HTTP/1.1
+X-Custom-Header: Kulala
+
+### NAMED_REQUEST
+
+GET https://echo.getkulala.net/get HTTP/1.1
+X-Custom-Header: Kulala-Named-Request
+
+### NAMED_REQUEST_INSECURE
+
+# @curl-insecure
+GET https://echo.getkulala.net/get HTTP/1.1
+X-Custom-Header: Kulala-Insecure
