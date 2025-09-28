@@ -1,0 +1,32 @@
+###
+
+# Simple HTTP file with JavaScript templating
+# @curl-insecure
+GET https://echo.getkulala.net/get HTTP/1.1
+X-Custom-Header: Kulala
+
+### NAMED_REQUEST
+
+GET https://echo.getkulala.net/get HTTP/1.1
+X-Custom-Header: Kulala-Named-Request
+
+### NAMED_REQUEST_INSECURE
+
+< {%
+console.log('Reading token from TOKEN.txt');
+%}
+# @curl-insecure
+POST https://echo.getkulala.net/post HTTP/1.1
+Content-Type: application/json
+X-Custom-Header: Kulala-Insecure
+
+{
+  "token": ""
+}
+
+> ./simple.js
+
+> {%
+  var fs = require('fs');
+  fs.writeFileSync('TOKEN.txt', response.body.json.token);
+%}
