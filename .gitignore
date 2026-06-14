@@ -1,5 +1,15 @@
-# dependencies (bun install)
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+src/lib/downloader/bin/*
+dist/*
+tmp/*
+
 node_modules
+.pnpm-store
 
 # output
 out

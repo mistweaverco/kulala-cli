@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "module": "esnext",
+    "strict": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "skipLibCheck": true,
+    "target": "esnext",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "lib": ["es2020"]
+  },
+  "include": ["src/*.ts", "src/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}
