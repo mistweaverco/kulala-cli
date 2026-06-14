@@ -1,0 +1,110 @@
+export type KulalaResponseBody =
+  | { type: 'text'; content: string; mediaType?: string }
+  | { type: 'json'; content: Record<string, unknown>; formatted?: string };
+
+export type KulalaScriptConsoleLine = {
+  level: 'log' | 'error' | 'warn' | 'info' | 'debug';
+  message: string;
+  origin: { type: string; name?: string; line?: number };
+};
+
+export type KulalaRequestSuccessResponse = {
+  success: true;
+  blockName?: string;
+  status: number;
+  headers: Record<string, string>;
+  url: string;
+  request?: {
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+    body?: string;
+  };
+  timings: {
+    dns: number;
+    tcp: number;
+    tls: number;
+    request: number;
+    redirect: number;
+    firstByte: number;
+    startTransfer: number;
+    total: number;
+  };
+  body: KulalaResponseBody;
+  filteredBody?: KulalaResponseBody;
+  scriptConsole?: KulalaScriptConsoleLine[];
+};
+
+export type KulalaRequestErrorResponse = {
+  success: false;
+  blockName?: string;
+  error: string;
+  scriptConsole?: KulalaScriptConsoleLine[];
+  httpCompleted?: boolean;
+  status?: number;
+  headers?: Record<string, string>;
+  url?: string;
+  request?: {
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+    body?: string;
+  };
+  body?: KulalaResponseBody;
+};
+
+export type KulalaPromptResponse = {
+  success: false;
+  prompt: true;
+  promptId: string;
+  promptType: string;
+  message: string;
+  inputs: Array<{
+    id: string;
+    label: string;
+    type: 'text' | 'password' | 'url';
+    required?: boolean;
+  }>;
+};
+
+export type KulalaSkippedResponse = {
+  success: true;
+  skipped: true;
+  blockName?: string;
+  scriptConsole?: KulalaScriptConsoleLine[];
+};
+
+export type KulalaWebSocketPlanResponse = {
+  success: true;
+  protocol: 'websocket';
+  url: string;
+  initialMessage?: string;
+};
+
+export type KulalaResponseItem =
+  | KulalaRequestSuccessResponse
+  | KulalaRequestErrorResponse
+  | KulalaPromptResponse
+  | KulalaSkippedResponse
+  | KulalaWebSocketPlanResponse;
+
+export type KulalaResponseWrapper =
+  | { type: 'responses'; data: KulalaResponseItem[] }
+  | { type: 'error'; data: KulalaRequestErrorResponse[] };
+
+export type RunLimit =
+  | { filter: 'name'; name: string }
+  | { filter: 'cursorPosition'; line: number; column: number };
+
+export type RunOptions = {
+  content: string;
+  filepath: string;
+  env?: string;
+  limit?: RunLimit[];
+  haltOnError?: boolean;
+};
+
+export type RunFileResult = {
+  filepath: string;
+  response: KulalaResponseWrapper;
+};
