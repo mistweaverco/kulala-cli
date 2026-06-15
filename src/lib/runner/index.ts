@@ -20,6 +20,7 @@ export type RunCommandOptions = {
   json?: boolean;
   report?: boolean;
   quiet?: boolean;
+  halt?: boolean;
   shuffle?: boolean;
   env?: string;
   name?: string;
@@ -59,6 +60,7 @@ async function runFile(
   relativePath: string,
   env: string | undefined,
   limit: RunLimit[] | undefined,
+  halt: boolean,
 ): Promise<RunFileResult> {
   const absolutePath = path.resolve(process.cwd(), relativePath);
   const content = fs.readFileSync(absolutePath, 'utf-8');
@@ -70,7 +72,7 @@ async function runFile(
       filepath: absolutePath,
       env,
       limit,
-      haltOnError: true,
+      haltOnError: halt,
     },
     { cwd },
   );
@@ -89,11 +91,13 @@ export async function run(inputPath: string, options: RunCommandOptions): Promis
     : resolveFiles(inputPath, options.shuffle ?? false);
   const results: RunFileResult[] = [];
 
+  const halt = options.halt ?? false;
+
   for (const file of files) {
-    const result = await runFile(file, options.env, limit);
+    const result = await runFile(file, options.env, limit, halt);
     results.push(result);
 
-    if (responseHasFailure(result)) {
+    if (halt && responseHasFailure(result)) {
       break;
     }
   }

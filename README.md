@@ -95,6 +95,12 @@ Only print output when a request fails:
 kulala run --quiet ./requests
 ```
 
+Stop after the first failing request or file:
+
+```sh
+kulala run --halt ./requests
+```
+
 Select an environment for variable resolution:
 
 ```sh
@@ -120,8 +126,10 @@ or `--column`, `<path>` must be a single `.http` or
 
 ### Exit behaviour
 
-kulala-cli exits with code `1` when any request fails. Execution stops after the
-first failing request within a file, and remaining files in a directory are not run.
+kulala-cli exits with code `1` when any request fails. By default, all requests
+in a file and all files in a directory are run even when failures occur. Pass
+`--halt` to stop after the first failing request within a file and skip remaining
+files in a directory.
 
 Success is determined by kulala-core's `success` flag, so operators such as
 `// @kulala-expect-status-code` are respected (for example, an expected `404` is
