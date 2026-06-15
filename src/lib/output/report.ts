@@ -1,100 +1,104 @@
-import type {
-  KulalaRequestErrorResponse,
-  KulalaRequestSuccessResponse,
-  KulalaResponseItem,
-  RunFileResult,
-} from '../kulala-core/types';
-import { formatMs, isResponseSuccessful, responseBodyText } from './human';
+import type { KulalaResponseItem, RunFileResult } from '../kulala-core/types';
+import { isResponseSuccessful } from './human';
+import {
+  escapeCell,
+  formatMs,
+  formatScriptOrigin,
+  isErrorResponse,
+  isPromptResponse,
+  isSkippedResponse,
+  isSuccessResponse,
+  isWebSocketResponse,
+  itemTitle,
+  mdTable,
+  parseAssertionTree,
+  responseBodyLanguage,
+  responseBodyText,
+  splitScriptConsole,
+  type ParsedAssert,
+  type ParsedTestGroup,
+} from './shared';
 
 type ReportStats = {
   total: number;
   success: number;
   failed: number;
+  tests: number;
+  testsPassed: number;
+  testsFailed: number;
 };
 
-function isPromptResponse(
-  item: KulalaResponseItem,
-): item is Extract<KulalaResponseItem, { prompt: true }> {
-  return 'prompt' in item && item.prompt === true;
+function formatAssertMarkdown(assert: ParsedAssert, indent: string): string {
+  const status = assert.pass ? 'PASS' : 'FAIL';
+  return `${indent}- **${status}** ${escapeCell(assert.message)}`;
 }
 
-function isSkippedResponse(
-  item: KulalaResponseItem,
-): item is Extract<KulalaResponseItem, { skipped: true }> {
-  return 'skipped' in item && item.skipped === true;
-}
-
-function isWebSocketResponse(
-  item: KulalaResponseItem,
-): item is Extract<KulalaResponseItem, { protocol: 'websocket' }> {
-  return 'protocol' in item && item.protocol === 'websocket';
-}
-
-function isErrorResponse(item: KulalaResponseItem): item is KulalaRequestErrorResponse {
-  return item.success === false && !isPromptResponse(item);
-}
-
-function isSuccessResponse(item: KulalaResponseItem): item is KulalaRequestSuccessResponse {
-  return item.success === true && !isSkippedResponse(item) && !isWebSocketResponse(item);
-}
-
-function escapeCell(value: string): string {
-  return value.replace(/\|/g, '\\|').replace(/\n/g, ' ');
-}
-
-function mdTable(rows: string[][]): string {
-  if (rows.length === 0) {
-    return '';
+function formatTestGroupMarkdown(test: ParsedTestGroup): string[] {
+  const status = test.pass ? 'PASS' : 'FAIL';
+  const lines = [`- **${status}** ${escapeCell(test.name)}`];
+  for (const assert of test.asserts) {
+    lines.push(formatAssertMarkdown(assert, '  '));
   }
-
-  const header = rows[0];
-  const separator = header.map(() => '---');
-  const body = rows.slice(1);
-
-  const formatRow = (row: string[]) => `| ${row.join(' | ')} |`;
-
-  return [formatRow(header), formatRow(separator), ...body.map(formatRow)].join('\n');
+  return lines;
 }
 
-function itemTitle(item: KulalaResponseItem): string {
-  if (isPromptResponse(item)) {
-    return `Prompt: ${item.promptType}`;
-  }
-  if (isSkippedResponse(item)) {
-    return item.blockName ? `Skipped — ${item.blockName}` : 'Skipped';
-  }
-  if (isWebSocketResponse(item)) {
-    return `WebSocket — ${item.url}`;
-  }
-  if (isErrorResponse(item)) {
-    const method = item.request?.method ?? 'REQUEST';
-    const url = item.url ?? item.blockName ?? 'unknown';
-    return `${method} ${url}`;
-  }
-  if (isSuccessResponse(item)) {
-    const method = item.request?.method ?? 'GET';
-    return `${method} ${item.url}`;
-  }
-  return 'Unknown request';
-}
-
-function formatScriptSection(item: KulalaResponseItem): string {
+function formatTestsSection(item: KulalaResponseItem): string {
   if (!('scriptConsole' in item) || !item.scriptConsole?.length) {
     return '';
   }
 
-  const lines = item.scriptConsole.map(
-    (line) => `- **${line.level.toUpperCase()}** ${escapeCell(line.message)}`,
-  );
-  return `#### Script output\n\n${lines.join('\n')}\n`;
+  const tree = parseAssertionTree(item.scriptConsole);
+  if (tree.tests.length === 0 && tree.standaloneAsserts.length === 0) {
+    return '';
+  }
+
+  const lines: string[] = [];
+  for (const test of tree.tests) {
+    lines.push(...formatTestGroupMarkdown(test));
+  }
+  for (const assert of tree.standaloneAsserts) {
+    lines.push(formatAssertMarkdown(assert, ''));
+  }
+
+  return `#### Tests\n\n${lines.join('\n')}\n`;
 }
 
-function formatItemSection(item: KulalaResponseItem): string {
+function formatScriptSection(item: KulalaResponseItem, requestFile?: string): string {
+  if (!('scriptConsole' in item) || !item.scriptConsole?.length) {
+    return '';
+  }
+
+  const { pre, post } = splitScriptConsole(item.scriptConsole);
+  const parts: string[] = [];
+
+  const formatLines = (lines: typeof pre) =>
+    lines
+      .map((line) => {
+        const origin = formatScriptOrigin(line.origin, requestFile);
+        return `- **${line.level.toUpperCase()}** \`${escapeCell(origin)}\` ${escapeCell(line.message)}`;
+      })
+      .join('\n');
+
+  if (pre.length > 0) {
+    parts.push(`##### Pre-request script\n\n${formatLines(pre)}`);
+  }
+  if (post.length > 0) {
+    parts.push(`##### Post-request script\n\n${formatLines(post)}`);
+  }
+
+  if (parts.length === 0) {
+    return '';
+  }
+
+  return `#### Script output\n\n${parts.join('\n\n')}\n`;
+}
+
+function formatItemSection(item: KulalaResponseItem, requestFile?: string): string {
   const parts: string[] = [`## ${escapeCell(itemTitle(item))}\n`];
   const rows: string[][] = [['Field', 'Value']];
 
   if ('blockName' in item && item.blockName) {
-    rows.push(['Block', escapeCell(item.blockName)]);
+    rows.push(['Name', escapeCell(item.blockName)]);
   }
 
   if (isErrorResponse(item)) {
@@ -126,15 +130,21 @@ function formatItemSection(item: KulalaResponseItem): string {
     const body = 'filteredBody' in item && item.filteredBody ? item.filteredBody : item.body;
     const text = responseBodyText(body);
     if (text) {
-      parts.push('#### Response body\n');
-      parts.push('```');
+      const lang = responseBodyLanguage(body);
+      parts.push(`#### Response body\n`);
+      parts.push(`\`\`\`${lang}`);
       parts.push(text);
       parts.push('```');
       parts.push('');
     }
   }
 
-  const script = formatScriptSection(item);
+  const tests = formatTestsSection(item);
+  if (tests) {
+    parts.push(tests);
+  }
+
+  const script = formatScriptSection(item, requestFile);
   if (script) {
     parts.push(script);
   }
@@ -147,12 +157,40 @@ function formatSummary(stats: ReportStats): string {
     ['', 'Total', 'Successful', 'Failed'],
     ['Requests', String(stats.total), String(stats.success), String(stats.failed)],
   ];
+
+  if (stats.tests > 0) {
+    rows.push(['Tests', String(stats.tests), String(stats.testsPassed), String(stats.testsFailed)]);
+  }
+
   return `## Summary\n\n${mdTable(rows)}\n`;
+}
+
+function collectTestStats(item: KulalaResponseItem, stats: ReportStats): void {
+  if (!('scriptConsole' in item) || !item.scriptConsole?.length) {
+    return;
+  }
+
+  const tree = parseAssertionTree(item.scriptConsole);
+  for (const test of tree.tests) {
+    stats.tests += 1;
+    if (test.pass) {
+      stats.testsPassed += 1;
+    } else {
+      stats.testsFailed += 1;
+    }
+  }
 }
 
 export function printReport(results: RunFileResult[]): void {
   const parts: string[] = ['# Requests report\n'];
-  const stats: ReportStats = { total: 0, success: 0, failed: 0 };
+  const stats: ReportStats = {
+    total: 0,
+    success: 0,
+    failed: 0,
+    tests: 0,
+    testsPassed: 0,
+    testsFailed: 0,
+  };
 
   for (const result of results) {
     if (results.length > 1) {
@@ -161,13 +199,14 @@ export function printReport(results: RunFileResult[]): void {
 
     const items = result.response.type === 'error' ? result.response.data : result.response.data;
     for (const item of items) {
-      parts.push(formatItemSection(item));
+      parts.push(formatItemSection(item, result.filepath));
       stats.total += 1;
       if (isResponseSuccessful(item)) {
         stats.success += 1;
       } else {
         stats.failed += 1;
       }
+      collectTestStats(item, stats);
     }
   }
 

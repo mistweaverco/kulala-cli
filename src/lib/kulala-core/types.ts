@@ -2,10 +2,24 @@ export type KulalaResponseBody =
   | { type: 'text'; content: string; mediaType?: string }
   | { type: 'json'; content: Record<string, unknown>; formatted?: string };
 
+export type KulalaScriptConsoleOrigin = {
+  phase: string;
+  source?: string;
+  file?: string;
+  httpDirectiveLine?: number;
+  line?: number;
+  column?: number;
+  type?: string;
+  name?: string;
+};
+
 export type KulalaScriptConsoleLine = {
   level: 'log' | 'error' | 'warn' | 'info' | 'debug';
   message: string;
-  origin: { type: string; name?: string; line?: number };
+  origin: KulalaScriptConsoleOrigin;
+  kind?: 'log' | 'test' | 'assert';
+  testName?: string;
+  status?: 'pass' | 'fail';
 };
 
 export type KulalaRequestSuccessResponse = {

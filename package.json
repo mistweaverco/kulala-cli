@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/node": "25.9.1",
     "chalk": "5.6.2",
+    "cli-highlight": "2.1.11",
     "commander": "15.0.0",
     "eslint-plugin-prettier": "5.5.6",
     "globals": "17.6.0",
