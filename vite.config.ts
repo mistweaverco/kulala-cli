@@ -15,7 +15,7 @@ export default defineConfig({
     tabWidth: TAB_WIDTH,
     sortTailwindcss: {},
     sortPackageJson: {},
-    ignorePatterns: ['node_modules/', 'dist/', 'tmp/'],
+    ignorePatterns: ['**node_modules/**', '**dist/**', 'tmp/'],
   },
   lint: {
     plugins: ['typescript', 'unicorn'],
@@ -32,7 +32,7 @@ export default defineConfig({
     env: {
       builtin: true,
     },
-    ignorePatterns: ['dist/**/*', 'tmp/**/*', 'node_modules/**/*'],
+    ignorePatterns: ['**node_modules/**', '**dist/**', 'tmp/'],
     rules: {
       'prettier/prettier': [
         'error',
