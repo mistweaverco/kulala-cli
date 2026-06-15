@@ -11,6 +11,7 @@ import {
   printJson,
   printReport,
 } from '../output';
+import { setColorEnabled } from '../output/highlight';
 import { buildRunLimit, resolveSingleHttpFile } from './limit';
 import type { RunLimit } from '../kulala-core/types';
 
@@ -26,6 +27,7 @@ export type RunCommandOptions = {
   name?: string;
   line?: number;
   column?: number;
+  color?: boolean;
 };
 
 function shuffleFiles<T>(items: T[]): T[] {
@@ -85,6 +87,10 @@ function hasFailures(results: RunFileResult[]): boolean {
 }
 
 export async function run(inputPath: string, options: RunCommandOptions): Promise<void> {
+  if (options.color === false) {
+    setColorEnabled(false);
+  }
+
   const limit = buildRunLimit(options);
   const files = limit
     ? [resolveSingleHttpFile(inputPath)]

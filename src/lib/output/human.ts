@@ -1,49 +1,28 @@
 import pc from 'picocolors';
 import type {
-  KulalaRequestErrorResponse,
-  KulalaRequestSuccessResponse,
   KulalaResponseBody,
   KulalaResponseItem,
   KulalaResponseWrapper,
   KulalaScriptConsoleLine,
   RunFileResult,
 } from '../kulala-core/types';
-
-function isPromptResponse(
-  item: KulalaResponseItem,
-): item is Extract<KulalaResponseItem, { prompt: true }> {
-  return 'prompt' in item && item.prompt === true;
-}
-
-function isSkippedResponse(
-  item: KulalaResponseItem,
-): item is Extract<KulalaResponseItem, { skipped: true }> {
-  return 'skipped' in item && item.skipped === true;
-}
-
-function isWebSocketResponse(
-  item: KulalaResponseItem,
-): item is Extract<KulalaResponseItem, { protocol: 'websocket' }> {
-  return 'protocol' in item && item.protocol === 'websocket';
-}
-
-function isErrorResponse(item: KulalaResponseItem): item is KulalaRequestErrorResponse {
-  return item.success === false && !isPromptResponse(item);
-}
-
-function isSuccessResponse(item: KulalaResponseItem): item is KulalaRequestSuccessResponse {
-  return item.success === true && !isSkippedResponse(item) && !isWebSocketResponse(item);
-}
-
-function responseBodyText(body: KulalaResponseBody | undefined): string {
-  if (!body) {
-    return '';
-  }
-  if (body.type === 'json') {
-    return body.formatted ?? JSON.stringify(body.content, null, 2);
-  }
-  return body.content;
-}
+import { highlightCode } from './highlight';
+import {
+  formatMs,
+  formatScriptOrigin,
+  isErrorResponse,
+  isPromptResponse,
+  isSkippedResponse,
+  isSuccessResponse,
+  isWebSocketResponse,
+  parseAssertionTree,
+  responseBodyLanguage,
+  responseBodyText,
+  splitScriptConsole,
+  type ParsedAssertionTree,
+  type ParsedAssert,
+  type ParsedTestGroup,
+} from './shared';
 
 function statusColor(status: number): (text: string) => string {
   if (status >= 200 && status < 300) {
@@ -55,38 +34,159 @@ function statusColor(status: number): (text: string) => string {
   return pc.red;
 }
 
-function formatHeaders(headers: Record<string, string>): string {
-  return Object.entries(headers)
-    .map(([name, value]) => `${name}: ${value}`)
-    .join('\n');
-}
-
-function formatScriptConsole(lines: KulalaScriptConsoleLine[] | undefined): string {
-  if (!lines?.length) {
+function formatSection(title: string, content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed) {
     return '';
   }
 
-  return lines
-    .map((line) => {
-      const prefix =
-        line.level === 'error'
-          ? pc.red('[error]')
-          : line.level === 'warn'
-            ? pc.yellow('[warn]')
-            : pc.dim(`[${line.level}]`);
-      return `${prefix} ${line.message}`;
-    })
+  const underline = '─'.repeat(Math.max(title.length, 12));
+  return `${pc.bold(title)}\n${pc.dim(underline)}\n${trimmed}`;
+}
+
+function formatHeaders(headers: Record<string, string>): string {
+  return Object.entries(headers)
+    .map(([name, value]) => pc.dim(`${name}: ${value}`))
     .join('\n');
 }
 
-function formatMs(ms: number): string {
-  if (ms < 1000) {
-    return `${Math.round(ms)}ms`;
+function formatBody(body: KulalaResponseBody | undefined): string {
+  const text = responseBodyText(body);
+  if (!text) {
+    return '';
   }
-  return `${(ms / 1000).toFixed(2)}s`;
+  return highlightCode(text, responseBodyLanguage(body));
 }
 
-function formatItem(item: KulalaResponseItem): string {
+const GROUP_SYMBOL = '';
+const PASS_SYMBOL = '✓';
+const FAIL_SYMBOL = '✗';
+
+function formatAssertLine(assert: ParsedAssert, indent: string): string {
+  if (assert.pass) {
+    return pc.green(`${indent}${PASS_SYMBOL} ${assert.message}`);
+  }
+  return pc.red(`${indent}${FAIL_SYMBOL} ${assert.message}`);
+}
+
+function formatTestGroup(test: ParsedTestGroup): string[] {
+  const lines: string[] = [];
+
+  lines.push(
+    test.pass
+      ? pc.green(`${PASS_SYMBOL} ${GROUP_SYMBOL} ${test.name}`)
+      : pc.red(`${FAIL_SYMBOL} ${GROUP_SYMBOL} ${test.name}`),
+  );
+
+  for (const assert of test.asserts) {
+    lines.push(formatAssertLine(assert, '  '));
+  }
+
+  return lines;
+}
+
+function formatTestsAndAsserts(tree: ParsedAssertionTree): string {
+  const lines: string[] = [];
+
+  for (const test of tree.tests) {
+    lines.push(...formatTestGroup(test));
+  }
+
+  for (const assert of tree.standaloneAsserts) {
+    lines.push(formatAssertLine(assert, '  '));
+  }
+
+  return lines.join('\n');
+}
+
+function formatScriptLine(line: KulalaScriptConsoleLine, requestFile?: string): string {
+  const prefix =
+    line.level === 'error'
+      ? pc.red('[error]')
+      : line.level === 'warn'
+        ? pc.yellow('[warn]')
+        : line.level === 'info'
+          ? pc.blue('[info]')
+          : line.level === 'debug'
+            ? pc.dim('[debug]')
+            : pc.dim('[log]');
+
+  const origin = pc.dim(formatScriptOrigin(line.origin, requestFile));
+  return `  ${prefix} ${origin} ${line.message}`;
+}
+
+function formatScriptLines(lines: KulalaScriptConsoleLine[], requestFile?: string): string {
+  if (lines.length === 0) {
+    return '';
+  }
+  return lines.map((line) => formatScriptLine(line, requestFile)).join('\n');
+}
+
+function formatScriptOutput(
+  lines: KulalaScriptConsoleLine[] | undefined,
+  requestFile?: string,
+): string {
+  const { pre, post } = splitScriptConsole(lines);
+  const parts: string[] = [];
+
+  const preText = formatScriptLines(pre, requestFile);
+  if (preText) {
+    parts.push(pc.dim('Pre-request'));
+    parts.push(preText);
+  }
+
+  const postText = formatScriptLines(post, requestFile);
+  if (postText) {
+    if (parts.length > 0) {
+      parts.push('');
+    }
+    parts.push(pc.dim('Post-request'));
+    parts.push(postText);
+  }
+
+  return parts.join('\n');
+}
+
+function formatRequestHeader(
+  method: string,
+  url: string,
+  blockName?: string,
+  status?: number,
+  durationMs?: number,
+  failed = false,
+): string {
+  const name = blockName ? pc.cyan(`${blockName}\n`) : '';
+  const lines = [`${name}${pc.bold(method)} ${url}`];
+
+  if (status !== undefined) {
+    const statusText = failed ? pc.red(`HTTP ${status}`) : statusColor(status)(`HTTP ${status}`);
+    const duration = durationMs !== undefined ? pc.dim(` · ${formatMs(durationMs)}`) : '';
+    lines.push(`${statusText}${duration}`);
+  }
+
+  return lines.join('\n');
+}
+
+function appendScriptSections(
+  parts: string[],
+  scriptConsole: KulalaScriptConsoleLine[] | undefined,
+  requestFile?: string,
+): void {
+  const tree = parseAssertionTree(scriptConsole);
+  const testsSection = formatTestsAndAsserts(tree);
+  const scriptSection = formatScriptOutput(scriptConsole, requestFile);
+
+  if (testsSection) {
+    parts.push('');
+    parts.push(formatSection('Tests', testsSection));
+  }
+  if (scriptSection) {
+    parts.push('');
+    parts.push(formatSection('Script output', scriptSection));
+  }
+}
+
+function formatItem(item: KulalaResponseItem, requestFile?: string): string {
   if (isPromptResponse(item)) {
     const parts = [pc.yellow(`Prompt (${item.promptType}): ${item.message}`)];
     for (const input of item.inputs) {
@@ -96,10 +196,8 @@ function formatItem(item: KulalaResponseItem): string {
   }
 
   if (isSkippedResponse(item)) {
-    const parts = [pc.dim(`Skipped${item.blockName ? ` [${item.blockName}]` : ''}`)];
-    if (item.scriptConsole?.length) {
-      parts.push(formatScriptConsole(item.scriptConsole));
-    }
+    const parts = [pc.dim(`Skipped${item.blockName ? ` · ${item.blockName}` : ''}`)];
+    appendScriptSections(parts, item.scriptConsole, requestFile);
     return parts.join('\n');
   }
 
@@ -112,70 +210,65 @@ function formatItem(item: KulalaResponseItem): string {
   }
 
   if (isErrorResponse(item)) {
-    const parts = [pc.red(`Error${item.blockName ? ` [${item.blockName}]` : ''}: ${item.error}`)];
-    if (item.url) {
-      parts.push(pc.dim(`${item.request?.method ?? 'GET'} ${item.url}`));
+    const method = item.request?.method ?? 'GET';
+    const parts = [
+      formatRequestHeader(
+        method,
+        item.url ?? item.blockName ?? 'unknown',
+        item.blockName,
+        item.status,
+        undefined,
+        true,
+      ),
+    ];
+
+    if (item.error) {
+      parts.push(pc.red(`Error: ${item.error}`));
     }
-    if (item.status !== undefined) {
-      parts.push(statusColor(item.status)(`HTTP ${item.status}`));
-    }
-    if (item.body) {
+
+    const bodySection = formatBody(item.body);
+    if (bodySection) {
       parts.push('');
-      parts.push(responseBodyText(item.body));
+      parts.push(formatSection('Response body', bodySection));
     }
-    if (item.scriptConsole?.length) {
-      parts.push('');
-      parts.push(formatScriptConsole(item.scriptConsole));
-    }
+
+    appendScriptSections(parts, item.scriptConsole, requestFile);
     return parts.join('\n');
   }
 
   if (isSuccessResponse(item)) {
     const method = item.request?.method ?? 'GET';
-    const statusLabel =
-      item.status >= 200 && item.status < 300
-        ? statusColor(item.status)(`HTTP ${item.status}`)
-        : pc.green(`HTTP ${item.status}`);
     const parts = [
-      `${pc.bold(method)} ${item.url}${item.blockName ? pc.dim(` [${item.blockName}]`) : ''}`,
-      statusLabel,
+      formatRequestHeader(method, item.url, item.blockName, item.status, item.timings?.total),
     ];
-
-    if (item.timings?.total !== undefined) {
-      parts.push(pc.dim(`Duration: ${formatMs(item.timings.total)}`));
-    }
 
     if (Object.keys(item.headers).length > 0) {
       parts.push('');
-      parts.push(pc.dim(formatHeaders(item.headers)));
+      parts.push(formatSection('Headers', formatHeaders(item.headers)));
     }
 
-    const bodyText = responseBodyText(item.filteredBody ?? item.body);
-    if (bodyText) {
+    const bodySection = formatBody(item.filteredBody ?? item.body);
+    if (bodySection) {
       parts.push('');
-      parts.push(bodyText);
+      parts.push(formatSection('Response body', bodySection));
     }
 
-    if (item.scriptConsole?.length) {
-      parts.push('');
-      parts.push(formatScriptConsole(item.scriptConsole));
-    }
-
+    appendScriptSections(parts, item.scriptConsole, requestFile);
     return parts.join('\n');
   }
 
   return pc.dim('Unknown response type');
 }
 
-function formatWrapper(wrapper: KulalaResponseWrapper): string {
+function formatWrapper(wrapper: KulalaResponseWrapper, requestFile?: string): string {
   const items = wrapper.type === 'error' ? wrapper.data : wrapper.data;
-  return items.map((entry) => formatItem(entry)).join('\n\n');
+  return items.map((entry) => formatItem(entry, requestFile)).join('\n\n');
 }
 
 export function printHumanReadable(results: RunFileResult[]): void {
   const blocks = results.map((result) => {
-    const header = results.length > 1 ? pc.bold(`# ${result.filepath}\n`) : '';
-    return `${header}${formatWrapper(result.response)}`;
+    const header = results.length > 1 ? `${pc.bold(`# ${result.filepath}`)}\n` : '';
+    return `${header}${formatWrapper(result.response, result.filepath)}`;
   });
 
   console.log(blocks.join('\n\n'));
@@ -190,7 +283,6 @@ export function isResponseSuccessful(item: KulalaResponseItem): boolean {
   if (isPromptResponse(item)) {
     return false;
   }
-  // Trust kulala-core's success flag (handles @kulala-expect-status-code, scripts, etc.)
   return item.success === true;
 }
 
