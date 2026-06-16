@@ -161,10 +161,9 @@ Run interactively with a mounted `.http` file:
 docker run -it \
   -v ${PWD}/test.http:/app/test.http \
   ghcr.io/mistweaverco/kulala-cli:latest \
-  run test.http
+  run test.http \
  --name
- ```
-
+```
 
 ### Run docker non-interactively, but with a pseudo-TTY:
 
@@ -175,9 +174,9 @@ a mounted `.http` file and pseudo-TTY:
 docker run -t \
   -v ${PWD}/test.http:/app/test.http \
   ghcr.io/mistweaverco/kulala-cli:latest \
-  run test.http
+  run test.http \
  --name "My Request Name"
- ```
+```
 
 ### Run docker non-interactively and without a pseudo-TTY; all requests in a directory:
 
@@ -189,15 +188,23 @@ docker run \
   -v ${PWD}/http-files-dir:/app/http-files-dir \
   ghcr.io/mistweaverco/kulala-cli:latest \
   run ./http-files-dir
- ```
+```
 
 ### Build docker and push to GitHub Container Registry:
 
-Build and push:
+#### Build and push to GitHub Container Registry:
 
 ```sh
 docker buildx build --push \
   -t ghcr.io/mistweaverco/kulala-cli:latest \
+  -f Dockerfile .
+```
+
+#### Build and push to Docker Hub:
+
+```sh
+docker buildx build --push \
+  -t mistweaverco/kulala-cli:latest \
   -f Dockerfile .
 ```
 

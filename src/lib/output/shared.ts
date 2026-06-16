@@ -41,6 +41,9 @@ export function responseBodyText(body: KulalaResponseBody | undefined): string {
   if (body.type === 'json') {
     return body.formatted ?? JSON.stringify(body.content, null, 2);
   }
+  if (body.type === 'binary') {
+    return '';
+  }
   return body.content;
 }
 
@@ -50,6 +53,9 @@ export function responseBodyLanguage(body: KulalaResponseBody | undefined): stri
   }
   if (body.type === 'json') {
     return 'json';
+  }
+  if (body.type === 'binary') {
+    return 'text';
   }
   const mediaType = body.mediaType?.toLowerCase() ?? '';
   if (mediaType.includes('json')) {
