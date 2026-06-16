@@ -1,5 +1,4 @@
 import {
-  CancelPromptError,
   ValidationError,
   createPrompt,
   isBackspaceKey,
@@ -135,7 +134,7 @@ export function selectWithFilter<Value>(config: SelectConfig<Value>): SelectProm
       return { first, last };
     }, [filteredItems]);
 
-    const [active, setActive] = useState<number>(0);
+    const [_, setActive] = useState<number>(0);
     const activeRef = useRef<number>(0);
 
     useEffect(() => {
