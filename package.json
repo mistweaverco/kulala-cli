@@ -1,6 +1,6 @@
 {
   "name": "@mistweaverco/kulala-cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/mistweaverco/kulala-cli"
@@ -23,6 +23,9 @@
     "postinstall": "node dist/install-backend.cjs || true"
   },
   "devDependencies": {
+    "@inquirer/core": "^11.2.1",
+    "@inquirer/select": "4.3.4",
+    "@inquirer/type": "^4.0.7",
     "@types/node": "25.9.1",
     "chalk": "5.6.2",
     "cli-highlight": "2.1.11",

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { downloader } from '../downloader';
-import type { KulalaResponseWrapper, RunOptions } from './types';
+import type { KulalaEnvironmentCatalog, KulalaResponseWrapper, RunOptions } from './types';
 
 export type { KulalaResponseWrapper, RunFileResult, RunOptions } from './types';
 
@@ -13,6 +13,9 @@ let cachedExecutable: string | null = null;
 async function executablePath(): Promise<string> {
   if (!cachedExecutable) {
     cachedExecutable = await downloader.ensureInstalled();
+  }
+  if (!cachedExecutable) {
+    throw new Error('kulala-core executable not resolved');
   }
   return cachedExecutable;
 }
@@ -68,6 +71,23 @@ export async function runHttp(
   ) as KulalaResponseWrapper;
 }
 
+export async function environments(
+  options: { cwd?: string; filepath?: string } = {},
+  invokeOptions: InvokeOptions = {},
+): Promise<KulalaEnvironmentCatalog> {
+  await executablePath();
+
+  return invoke(
+    {
+      action: 'environments',
+      cwd: options.cwd,
+      filepath: options.filepath,
+    },
+    invokeOptions,
+  ) as KulalaEnvironmentCatalog;
+}
+
 export const kulalaCore = {
   runHttp,
+  environments,
 };

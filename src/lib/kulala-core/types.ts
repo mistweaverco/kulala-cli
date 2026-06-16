@@ -110,6 +110,11 @@ export type RunLimit =
   | { filter: 'name'; name: string }
   | { filter: 'cursorPosition'; line: number; column: number };
 
+export type KulalaEnvironmentCatalog = {
+  $kulalaShared?: Record<string, unknown>;
+  environments: Record<string, Record<string, unknown>>;
+};
+
 export type RunOptions = {
   content: string;
   filepath: string;
