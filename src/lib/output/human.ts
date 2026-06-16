@@ -7,6 +7,7 @@ import type {
   RunFileResult,
 } from '../kulala-core/types';
 import { highlightCode } from './highlight';
+import { formatByteSize, isBinaryBody, isImageBody, renderImageInline } from './binary';
 import {
   formatMs,
   formatScriptOrigin,
@@ -51,6 +52,18 @@ function formatHeaders(headers: Record<string, string>): string {
 }
 
 function formatBody(body: KulalaResponseBody | undefined): string {
+  if (isBinaryBody(body)) {
+    const mediaType = body.mediaType ?? 'application/octet-stream';
+    if (isImageBody(body)) {
+      const rendered = renderImageInline(body);
+      if (rendered) {
+        return rendered;
+      }
+    }
+    return pc.dim(
+      `Binary response body omitted (${mediaType}, ${formatByteSize(body.byteLength)})`,
+    );
+  }
   const text = responseBodyText(body);
   if (!text) {
     return '';
