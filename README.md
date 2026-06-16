@@ -151,6 +151,56 @@ export KULALA_CORE_PATH=/path/to/kulala-core/dist/kulala-core
 node dist/cli.cjs run file.http
 ```
 
+## Docker
+
+### Run docker interactively and pseudo-TTY:
+
+Run interactively with a mounted `.http` file:
+
+```sh
+docker run -it \
+  -v ${PWD}/test.http:/app/test.http \
+  ghcr.io/mistweaverco/kulala-cli:latest \
+  run test.http
+ --name
+ ```
+
+
+### Run docker non-interactively, but with a pseudo-TTY:
+
+Run one request by block name (`###` name) with
+a mounted `.http` file and pseudo-TTY:
+
+```sh
+docker run -t \
+  -v ${PWD}/test.http:/app/test.http \
+  ghcr.io/mistweaverco/kulala-cli:latest \
+  run test.http
+ --name "My Request Name"
+ ```
+
+### Run docker non-interactively and without a pseudo-TTY; all requests in a directory:
+
+Run all requests in a directory without
+a pseudo-TTY (for example, in CI):
+
+```sh
+docker run \
+  -v ${PWD}/http-files-dir:/app/http-files-dir \
+  ghcr.io/mistweaverco/kulala-cli:latest \
+  run ./http-files-dir
+ ```
+
+### Build docker and push to GitHub Container Registry:
+
+Build and push:
+
+```sh
+docker buildx build --push \
+  -t ghcr.io/mistweaverco/kulala-cli:latest \
+  -f Dockerfile .
+```
+
 [logo]: https://raw.githubusercontent.com/mistweaverco/kulala-cli/main/assets/logo.svg
 [discord]: https://mistweaverco.com/discord
 [badge-discord]: https://mistweaverco.com/assets/badges/discord.svg
