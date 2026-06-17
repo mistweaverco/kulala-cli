@@ -1,15 +1,39 @@
+import jpeg from 'jpeg-js';
+import { PNG } from 'pngjs';
 import type { KulalaResponseBody } from '../kulala-core/types';
 
 export type TerminalImageProtocol = 'kitty' | 'iterm2' | 'wezterm' | 'ghostty';
 
+export type RenderedInlineImage = {
+  content: string;
+  /** Present when the image was transcoded for Kitty/Ghostty inline display. */
+  convertedFrom?: 'jpeg';
+};
+
+type BinaryImageBody = Extract<KulalaResponseBody, { type: 'binary' }>;
+
 function isGhostty(): boolean {
-  if (process.env.GHOSTTY_RESOURCES_DIR) {
+  if (
+    process.env.GHOSTTY_RESOURCES_DIR ||
+    process.env.GHOSTTY_BIN_DIR ||
+    process.env.GHOSTTY_SHELL_FEATURES
+  ) {
     return true;
   }
   if ((process.env.TERM ?? '').includes('ghostty')) {
     return true;
   }
   return (process.env.TERM_PROGRAM ?? '').toLowerCase().includes('ghostty');
+}
+
+function isKitty(): boolean {
+  if (process.env.KITTY_WINDOW_ID || process.env.KITTY_PID) {
+    return true;
+  }
+  if ((process.env.TERM ?? '').includes('xterm-kitty')) {
+    return true;
+  }
+  return (process.env.TERM_PROGRAM ?? '').toLowerCase() === 'kitty';
 }
 
 function isWezTerm(): boolean {
@@ -20,7 +44,7 @@ function isWezTerm(): boolean {
 }
 
 export function detectTerminalImageProtocol(): TerminalImageProtocol | null {
-  if (process.env.KITTY_WINDOW_ID || (process.env.TERM ?? '').includes('xterm-kitty')) {
+  if (isKitty()) {
     return 'kitty';
   }
   // Ghostty uses the Kitty graphics protocol.
@@ -53,6 +77,37 @@ export function isImageBody(body: KulalaResponseBody | undefined): boolean {
   return mediaType.startsWith('image/');
 }
 
+function isPngImage(body: BinaryImageBody): boolean {
+  const mediaType = body.mediaType?.toLowerCase() ?? '';
+  if (mediaType === 'image/png') {
+    return true;
+  }
+  return body.content.startsWith('iVBORw0KGgo');
+}
+
+function isJpegImage(body: BinaryImageBody): boolean {
+  const mediaType = body.mediaType?.toLowerCase() ?? '';
+  if (mediaType === 'image/jpeg' || mediaType === 'image/jpg') {
+    return true;
+  }
+  return body.content.startsWith('/9j/');
+}
+
+function usesKittyGraphicsProtocol(protocol: TerminalImageProtocol): boolean {
+  return protocol === 'kitty' || protocol === 'ghostty';
+}
+
+function convertJpegBase64ToPngBase64(base64: string): string | null {
+  try {
+    const decoded = jpeg.decode(Buffer.from(base64, 'base64'));
+    const png = new PNG({ width: decoded.width, height: decoded.height });
+    png.data = decoded.data;
+    return PNG.sync.write(png).toString('base64');
+  } catch {
+    return null;
+  }
+}
+
 export function formatByteSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return `${bytes} B`;
   if (bytes < 1024) return `${bytes} B`;
@@ -63,16 +118,23 @@ export function formatByteSize(bytes: number): string {
 }
 
 function kittyImageEscape(base64: string): string {
-  // Kitty graphics protocol: transmit base64 chunks.
+  // Kitty graphics protocol: transmit base64 PNG chunks.
   // https://sw.kovidgoyal.net/kitty/graphics-protocol/
+  // f=100 is required for PNG; without it terminals default to raw RGBA (f=32).
   const CHUNK = 4096;
   let out = '';
-  for (let i = 0; i < base64.length; i += CHUNK) {
-    const chunk = base64.slice(i, i + CHUNK);
-    const more = i + CHUNK < base64.length ? 1 : 0;
-    // f=100 => PNG; kitty will detect from bytes too, but we don't have raw bytes here.
-    // Use t=d (base64), a=T (transmit), m=1 for more chunks.
-    out += `\u001b_Ga=T,t=d,m=${more};${chunk}\u001b\\`;
+  let offset = 0;
+  let first = true;
+  while (offset < base64.length) {
+    const chunk = base64.slice(offset, offset + CHUNK);
+    offset += CHUNK;
+    const more = offset < base64.length ? 1 : 0;
+    if (first) {
+      out += `\u001b_Ga=T,f=100,m=${more};${chunk}\u001b\\`;
+      first = false;
+    } else {
+      out += `\u001b_Gm=${more};${chunk}\u001b\\`;
+    }
   }
   return out;
 }
@@ -83,18 +145,30 @@ function iterm2ImageEscape(base64: string, byteLength: number): string {
   return `\u001b]1337;File=inline=1;size=${byteLength};width=auto;height=auto;preserveAspectRatio=1:${base64}\u0007`;
 }
 
-export function renderImageInline(
-  body: Extract<KulalaResponseBody, { type: 'binary' }>,
-): string | null {
+export function renderImageInline(body: BinaryImageBody): RenderedInlineImage | null {
   const protocol = detectTerminalImageProtocol();
   if (!protocol) return null;
   if (body.encoding !== 'base64') return null;
 
-  if (protocol === 'kitty' || protocol === 'ghostty') {
-    return kittyImageEscape(body.content);
+  if (usesKittyGraphicsProtocol(protocol)) {
+    let base64 = body.content;
+    let convertedFrom: 'jpeg' | undefined;
+
+    if (!isPngImage(body) && isJpegImage(body)) {
+      const pngBase64 = convertJpegBase64ToPngBase64(body.content);
+      if (!pngBase64) {
+        return null;
+      }
+      base64 = pngBase64;
+      convertedFrom = 'jpeg';
+    }
+
+    return { content: kittyImageEscape(base64), convertedFrom };
   }
+
   if (protocol === 'iterm2' || protocol === 'wezterm') {
-    return iterm2ImageEscape(body.content, body.byteLength);
+    return { content: iterm2ImageEscape(body.content, body.byteLength) };
   }
+
   return null;
 }

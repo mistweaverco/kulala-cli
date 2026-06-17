@@ -59,7 +59,12 @@ function formatBody(body: KulalaResponseBody | undefined): string {
     if (isImageBody(body)) {
       const rendered = renderImageInline(body);
       if (rendered) {
-        return rendered;
+        const parts: string[] = [];
+        if (rendered.convertedFrom === 'jpeg') {
+          parts.push(pc.yellow('! Converted JPEG to PNG for terminal compatibility'));
+        }
+        parts.push(rendered.content);
+        return parts.join('\n');
       }
     }
     return pc.dim(
