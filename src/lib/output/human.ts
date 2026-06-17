@@ -162,17 +162,23 @@ function formatScriptOutput(
   return parts.join('\n');
 }
 
+function formatStatusLine(status: number, httpVersion?: string, failed = false): string {
+  const label = httpVersion ? `${httpVersion} ${status}` : `HTTP ${status}`;
+  return failed ? pc.red(label) : statusColor(status)(label);
+}
+
 function formatRequestHeader(
   method: string,
   url: string,
   status?: number,
   durationMs?: number,
   failed = false,
+  httpVersion?: string,
 ): string {
   const lines = [`${pc.bold(method)} ${url}`];
 
   if (status !== undefined) {
-    const statusText = failed ? pc.red(`HTTP ${status}`) : statusColor(status)(`HTTP ${status}`);
+    const statusText = formatStatusLine(status, httpVersion, failed);
     const duration = durationMs !== undefined ? pc.dim(` · ${formatMs(durationMs)}`) : '';
     lines.push(`${statusText}${duration}`);
   }
@@ -234,6 +240,7 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
           item.status,
           undefined,
           true,
+          item.httpVersion,
         ),
     ];
 
@@ -254,7 +261,15 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
   if (isSuccessResponse(item)) {
     const method = item.request?.method ?? 'GET';
     const parts = [
-      header + formatRequestHeader(method, item.url, item.status, item.timings?.total),
+      header +
+        formatRequestHeader(
+          method,
+          item.url,
+          item.status,
+          item.timings?.total,
+          false,
+          item.httpVersion,
+        ),
     ];
 
     if (Object.keys(item.headers).length > 0) {
