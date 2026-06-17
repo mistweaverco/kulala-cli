@@ -75,7 +75,9 @@ export type KulalaRequestErrorResponse = {
     headers?: Record<string, string>;
     body?: string;
   };
+  timings?: KulalaRequestSuccessResponse['timings'];
   body?: KulalaResponseBody;
+  filteredBody?: KulalaResponseBody;
 };
 
 export type KulalaPromptResponse = {
