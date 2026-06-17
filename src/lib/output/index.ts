@@ -6,3 +6,4 @@ export {
   isResponseSuccessful,
 } from './human';
 export { printReport } from './report';
+export { printTests } from './tests';

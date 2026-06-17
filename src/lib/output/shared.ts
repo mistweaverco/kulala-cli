@@ -1,4 +1,5 @@
 import path from 'node:path';
+import pc from 'picocolors';
 import type {
   KulalaRequestErrorResponse,
   KulalaRequestSuccessResponse,
@@ -320,6 +321,24 @@ export function splitScriptConsole(lines: KulalaScriptConsoleLine[] | undefined)
   }
 
   return { pre, post };
+}
+
+function formatLabeledField(label: string, value: string): string {
+  return pc.bold(`${pc.cyan(`${label}:`)} ${value}`);
+}
+
+export function formatRunHeader(filepath: string, blockName: string): string {
+  return [
+    formatLabeledField('Filepath', filepath),
+    formatLabeledField('Block name', blockName),
+  ].join('\n');
+}
+
+export function itemDisplayName(item: KulalaResponseItem): string {
+  if ('blockName' in item && item.blockName) {
+    return item.blockName;
+  }
+  return itemTitle(item);
 }
 
 export function itemTitle(item: KulalaResponseItem): string {
