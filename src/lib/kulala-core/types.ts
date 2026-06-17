@@ -34,6 +34,8 @@ export type KulalaRequestSuccessResponse = {
   success: true;
   blockName?: string;
   status: number;
+  /** Protocol version from the response status line (e.g. HTTP/2). */
+  httpVersion?: string;
   headers: Record<string, string>;
   url: string;
   request?: {
@@ -64,6 +66,7 @@ export type KulalaRequestErrorResponse = {
   scriptConsole?: KulalaScriptConsoleLine[];
   httpCompleted?: boolean;
   status?: number;
+  httpVersion?: string;
   headers?: Record<string, string>;
   url?: string;
   request?: {
