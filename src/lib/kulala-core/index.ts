@@ -87,7 +87,23 @@ export async function environments(
   ) as KulalaEnvironmentCatalog;
 }
 
+export async function curl(
+  options: { argv: string[] },
+  invokeOptions: InvokeOptions = {},
+): Promise<KulalaResponseWrapper> {
+  await executablePath();
+
+  return invoke(
+    {
+      action: 'curl',
+      argv: options.argv,
+    },
+    invokeOptions,
+  ) as KulalaResponseWrapper;
+}
+
 export const kulalaCore = {
   runHttp,
   environments,
+  curl,
 };

@@ -77,6 +77,13 @@ Run a `.http` file and only print test output (full output on failures):
 kulala run --tests file.http
 ```
 
+Run curl with human-readable output (supports normal curl flags):
+
+```sh
+kulala curl -I https://echo.kulala.app/get
+kulala curl -H "Accept: application/json" https://echo.kulala.app/get
+```
+
 Run all files in a directory and only print test output:
 
 ```sh
