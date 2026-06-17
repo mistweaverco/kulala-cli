@@ -10,7 +10,9 @@ import { highlightCode } from './highlight';
 import { formatByteSize, isBinaryBody, isImageBody, renderImageInline } from './binary';
 import {
   formatMs,
+  formatRunHeader,
   formatScriptOrigin,
+  itemDisplayName,
   isErrorResponse,
   isPromptResponse,
   isSkippedResponse,
@@ -163,13 +165,11 @@ function formatScriptOutput(
 function formatRequestHeader(
   method: string,
   url: string,
-  blockName?: string,
   status?: number,
   durationMs?: number,
   failed = false,
 ): string {
-  const name = blockName ? pc.cyan(`${blockName}\n`) : '';
-  const lines = [`${name}${pc.bold(method)} ${url}`];
+  const lines = [`${pc.bold(method)} ${url}`];
 
   if (status !== undefined) {
     const statusText = failed ? pc.red(`HTTP ${status}`) : statusColor(status)(`HTTP ${status}`);
@@ -200,8 +200,10 @@ function appendScriptSections(
 }
 
 function formatItem(item: KulalaResponseItem, requestFile?: string): string {
+  const header = requestFile ? `${formatRunHeader(requestFile, itemDisplayName(item))}\n` : '';
+
   if (isPromptResponse(item)) {
-    const parts = [pc.yellow(`Prompt (${item.promptType}): ${item.message}`)];
+    const parts = [header + pc.yellow(`Prompt (${item.promptType}): ${item.message}`)];
     for (const input of item.inputs) {
       parts.push(`  - ${input.label} (${input.type}${input.required ? ', required' : ''})`);
     }
@@ -209,13 +211,13 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
   }
 
   if (isSkippedResponse(item)) {
-    const parts = [pc.dim(`Skipped${item.blockName ? ` · ${item.blockName}` : ''}`)];
+    const parts = [header + pc.dim(`Skipped${item.blockName ? ` · ${item.blockName}` : ''}`)];
     appendScriptSections(parts, item.scriptConsole, requestFile);
     return parts.join('\n');
   }
 
   if (isWebSocketResponse(item)) {
-    const parts = [pc.cyan(`WebSocket: ${item.url}`)];
+    const parts = [header + pc.cyan(`WebSocket: ${item.url}`)];
     if (item.initialMessage) {
       parts.push(pc.dim(`Initial message: ${item.initialMessage}`));
     }
@@ -225,14 +227,14 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
   if (isErrorResponse(item)) {
     const method = item.request?.method ?? 'GET';
     const parts = [
-      formatRequestHeader(
-        method,
-        item.url ?? item.blockName ?? 'unknown',
-        item.blockName,
-        item.status,
-        undefined,
-        true,
-      ),
+      header +
+        formatRequestHeader(
+          method,
+          item.url ?? item.blockName ?? 'unknown',
+          item.status,
+          undefined,
+          true,
+        ),
     ];
 
     if (item.error) {
@@ -252,7 +254,7 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
   if (isSuccessResponse(item)) {
     const method = item.request?.method ?? 'GET';
     const parts = [
-      formatRequestHeader(method, item.url, item.blockName, item.status, item.timings?.total),
+      header + formatRequestHeader(method, item.url, item.status, item.timings?.total),
     ];
 
     if (Object.keys(item.headers).length > 0) {
@@ -270,7 +272,7 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
     return parts.join('\n');
   }
 
-  return pc.dim('Unknown response type');
+  return header + pc.dim('Unknown response type');
 }
 
 function formatWrapper(wrapper: KulalaResponseWrapper, requestFile?: string): string {
@@ -279,11 +281,7 @@ function formatWrapper(wrapper: KulalaResponseWrapper, requestFile?: string): st
 }
 
 export function printHumanReadable(results: RunFileResult[]): void {
-  const blocks = results.map((result) => {
-    const header = results.length > 1 ? `${pc.bold(`# ${result.filepath}`)}\n` : '';
-    return `${header}${formatWrapper(result.response, result.filepath)}`;
-  });
-
+  const blocks = results.map((result) => formatWrapper(result.response, result.filepath));
   console.log(blocks.join('\n\n'));
 }
 

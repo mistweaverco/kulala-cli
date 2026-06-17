@@ -10,6 +10,7 @@ import {
   printHumanReadable,
   printJson,
   printReport,
+  printTests,
 } from '../output';
 import { setColorEnabled } from '../output/highlight';
 import { buildRunLimit, resolveSingleHttpFile } from './limit';
@@ -20,6 +21,7 @@ const HTTP_EXTENSIONS = ['.http', '.rest'];
 export type RunCommandOptions = {
   json?: boolean;
   report?: boolean;
+  tests?: boolean;
   quiet?: boolean;
   halt?: boolean;
   shuffle?: boolean;
@@ -91,6 +93,11 @@ export async function run(inputPath: string, options: RunCommandOptions): Promis
     setColorEnabled(false);
   }
 
+  // Backwards compatibility: --report is replaced by --tests.
+  if (options.report && !options.tests) {
+    options.tests = true;
+  }
+
   const limit = buildRunLimit(options);
   const files = limit
     ? [resolveSingleHttpFile(inputPath)]
@@ -108,9 +115,12 @@ export async function run(inputPath: string, options: RunCommandOptions): Promis
     }
   }
 
-  const outputResults = options.quiet ? filterFailedResults(results) : results;
+  const outputResults = options.quiet && !options.tests ? filterFailedResults(results) : results;
 
-  if (!options.quiet || outputResults.length > 0) {
+  if (options.tests) {
+    // Tests mode handles its own "quiet" filtering because failures include test failures.
+    printTests(results, { quiet: options.quiet ?? false });
+  } else if (!options.quiet || outputResults.length > 0) {
     if (options.json) {
       printJson(outputResults);
     } else if (options.report) {

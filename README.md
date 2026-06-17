@@ -37,10 +37,10 @@ You can also run it directly without installation using
 `npx`, `bunx`, `yarn dlx` or `pnpx`:
 
 ```sh
-npx @mistweaverco/kulala-cli run --report file.http
-bunx @mistweaverco/kulala-cli run --report file.http
-yarn dlx @mistweaverco/kulala-cli run --report file.http
-pnpx @mistweaverco/kulala-cli run --report file.http
+npx @mistweaverco/kulala-cli run --tests file.http
+bunx @mistweaverco/kulala-cli run --tests file.http
+yarn dlx @mistweaverco/kulala-cli run --tests file.http
+pnpx @mistweaverco/kulala-cli run --tests file.http
 ```
 
 On install, kulala-cli downloads a matching
@@ -71,22 +71,22 @@ Run a `.http` file and print the raw kulala-core JSON output:
 kulala run --json file.http
 ```
 
-Run a `.http` file and print a report:
+Run a `.http` file and only print test output (full output on failures):
 
 ```sh
-kulala run --report file.http
+kulala run --tests file.http
 ```
 
-Run all files in a directory and print a report:
+Run all files in a directory and only print test output:
 
 ```sh
-kulala run --report ./requests
+kulala run --tests ./requests
 ```
 
-Run all files in a directory (in random order) and print a report:
+Run all files in a directory (in random order) and only print test output:
 
 ```sh
-kulala run --report --shuffle ./requests
+kulala run --tests --shuffle ./requests
 ```
 
 Only print output when a request fails:
@@ -104,7 +104,7 @@ kulala run --halt ./requests
 Select an environment for variable resolution:
 
 ```sh
-kulala run --report --env=production file.http
+kulala run --tests --env=production file.http
 ```
 
 Run a single request by block name (`###` name):
