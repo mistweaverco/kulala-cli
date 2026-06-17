@@ -191,6 +191,26 @@ function formatRequestHeader(
   return lines.join('\n');
 }
 
+function appendHttpResponseDetails(
+  parts: string[],
+  item: {
+    headers?: Record<string, string>;
+    body?: KulalaResponseBody;
+    filteredBody?: KulalaResponseBody;
+  },
+): void {
+  if (item.headers && Object.keys(item.headers).length > 0) {
+    parts.push('');
+    parts.push(formatSection('Headers', formatHeaders(item.headers)));
+  }
+
+  const bodySection = formatBody(item.filteredBody ?? item.body);
+  if (bodySection) {
+    parts.push('');
+    parts.push(formatSection('Response body', bodySection));
+  }
+}
+
 function appendScriptSections(
   parts: string[],
   scriptConsole: KulalaScriptConsoleLine[] | undefined,
@@ -243,7 +263,7 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
           method,
           item.url ?? item.blockName ?? 'unknown',
           item.status,
-          undefined,
+          item.timings?.total,
           true,
           item.httpVersion,
         ),
@@ -253,12 +273,7 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
       parts.push(pc.red(`Error: ${item.error}`));
     }
 
-    const bodySection = formatBody(item.body);
-    if (bodySection) {
-      parts.push('');
-      parts.push(formatSection('Response body', bodySection));
-    }
-
+    appendHttpResponseDetails(parts, item);
     appendScriptSections(parts, item.scriptConsole, requestFile);
     return parts.join('\n');
   }
@@ -277,17 +292,7 @@ function formatItem(item: KulalaResponseItem, requestFile?: string): string {
         ),
     ];
 
-    if (Object.keys(item.headers).length > 0) {
-      parts.push('');
-      parts.push(formatSection('Headers', formatHeaders(item.headers)));
-    }
-
-    const bodySection = formatBody(item.filteredBody ?? item.body);
-    if (bodySection) {
-      parts.push('');
-      parts.push(formatSection('Response body', bodySection));
-    }
-
+    appendHttpResponseDetails(parts, item);
     appendScriptSections(parts, item.scriptConsole, requestFile);
     return parts.join('\n');
   }
