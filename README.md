@@ -5,8 +5,11 @@
 # kulala-cli
 
 [![npm][badge-npm]][link-npm]
-[![latest release][badge-github]][link-github]
+[![Made with love][badge-made-with-love]][contributors]
 [![Discord][badge-discord]][discord]
+[![Development status][badge-development-status]][development-status]
+[![Our manifesto][badge-our-manifesto]][our-manifesto]
+[![AI Policty][badge-ai-policy]][ai-policy]
 
 [Install](#install) •
 [Usage](#usage)
@@ -18,6 +21,17 @@ interface 🖥️ for your command-line ❤️,
 that supports the Jetbrains .http spec (with full scripting support).
 
 <p></p>
+
+# Other tools 🔧 from the Kulala 🐼 family 🌈
+
+[Kulala for Neovim][kulala.nvim] •
+[Kulala Formatter (and converter)][kulala-fmt] •
+[Kulala Desktop][kulala-desktop] •
+[Kulala for Visual Studio Code][kulala.vscode] •
+[Kulala Core][kulala-core]
+[Kulala Github Action][kulala-github-action]
+
+---
 
 </div>
 
@@ -215,10 +229,25 @@ docker buildx build --push \
   -f Dockerfile .
 ```
 
+
+
 [logo]: https://raw.githubusercontent.com/mistweaverco/kulala-cli/main/assets/logo.svg
-[discord]: https://mistweaverco.com/discord
-[badge-discord]: https://mistweaverco.com/assets/badges/discord.svg
-[badge-github]: https://img.shields.io/github/v/release/mistweaverco/kulala-cli?style=for-the-badge
-[link-github]: https://github.com/mistweaverco/kulala-cli/releases/latest
 [badge-npm]: https://img.shields.io/npm/v/@mistweaverco/kulala-cli?style=for-the-badge
 [link-npm]: https://www.npmjs.com/package/@mistweaverco/kulala-cli
+[badge-discord]: https://mistweaverco.com/assets/badges/discord.svg
+[discord]: https://mistweaverco.com/discord
+[badge-made-with-love]: https://mistweaverco.com/assets/badges/made-with-love.svg
+[contributors]: https://github.com/mistweaverco/kulala.nvim/graphs/contributors
+[kulala.nvim]: https://github.com/mistweaverco/kulala.nvim
+[kulala-fmt]: https://github.com/mistweaverco/kulala-fmt
+[kulala-desktop]: https://github.com/mistweaverco/kulala-desktop
+[kulala.vscode]: https://github.com/mistweaverco/kulala.vscode
+[kulala-core]: https://github.com/mistweaverco/kulala-core
+[kulala-github-action]: https://github.com/mistweaverco/kulala-github-action
+[demo-image]: https://github.com/user-attachments/assets/a7b3b01f-0115-44dc-94d2-8abd4db6fb60
+[badge-development-status]: https://mistweaverco.com/assets/badges/development-status.svg
+[development-status]: https://mistweaverco.com/roadmap?filter=kulala.nvim
+[badge-ai-policy]: https://mistweaverco.com/assets/badges/ai-policy.svg
+[ai-policy]: https://mistweaverco.com/ai-policy
+[badge-our-manifesto]: https://mistweaverco.com/assets/badges/our-manifesto.svg
+[our-manifesto]: https://mistweaverco.com/manifesto
