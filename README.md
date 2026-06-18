@@ -237,7 +237,7 @@ docker buildx build --push \
 [badge-discord]: https://mistweaverco.com/assets/badges/discord.svg
 [discord]: https://mistweaverco.com/discord
 [badge-made-with-love]: https://mistweaverco.com/assets/badges/made-with-love.svg
-[contributors]: https://github.com/mistweaverco/kulala.nvim/graphs/contributors
+[contributors]: https://github.com/mistweaverco/kulala-cli/graphs/contributors
 [kulala.nvim]: https://github.com/mistweaverco/kulala.nvim
 [kulala-fmt]: https://github.com/mistweaverco/kulala-fmt
 [kulala-desktop]: https://github.com/mistweaverco/kulala-desktop
