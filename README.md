@@ -246,7 +246,7 @@ docker buildx build --push \
 [kulala-github-action]: https://github.com/mistweaverco/kulala-github-action
 [demo-image]: https://github.com/user-attachments/assets/a7b3b01f-0115-44dc-94d2-8abd4db6fb60
 [badge-development-status]: https://mistweaverco.com/assets/badges/development-status.svg
-[development-status]: https://mistweaverco.com/roadmap?filter=kulala.nvim
+[development-status]: https://mistweaverco.com/roadmap?filter=kulala-cli
 [badge-ai-policy]: https://mistweaverco.com/assets/badges/ai-policy.svg
 [ai-policy]: https://mistweaverco.com/ai-policy
 [badge-our-manifesto]: https://mistweaverco.com/assets/badges/our-manifesto.svg
