@@ -1,11 +1,18 @@
 import { spawnSync } from 'node:child_process';
 import { downloader } from '../downloader';
+import { isPromptResponse } from '../output/shared';
 import type { KulalaEnvironmentCatalog, KulalaResponseWrapper, RunOptions } from './types';
 
 export type { KulalaResponseWrapper, RunFileResult, RunOptions } from './types';
 
 export type InvokeOptions = {
   cwd?: string;
+};
+
+type InvokeResult = {
+  stdout: string;
+  stderr: string;
+  status: number | null;
 };
 
 let cachedExecutable: string | null = null;
@@ -20,7 +27,7 @@ async function executablePath(): Promise<string> {
   return cachedExecutable;
 }
 
-function invoke(payload: Record<string, unknown>, options: InvokeOptions = {}): unknown {
+function invokeRaw(payload: Record<string, unknown>, options: InvokeOptions = {}): InvokeResult {
   const exe = cachedExecutable;
   if (!exe) {
     throw new Error('kulala-core executable not resolved');
@@ -38,18 +45,47 @@ function invoke(payload: Record<string, unknown>, options: InvokeOptions = {}): 
     throw result.error;
   }
 
-  if (result.status !== 0) {
+  return {
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+    status: result.status,
+  };
+}
+
+export function tryDecodeWrapper(stdout: string): KulalaResponseWrapper | undefined {
+  const raw = stdout.trim();
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    const wrapper = JSON.parse(raw) as KulalaResponseWrapper;
+    if (wrapper && typeof wrapper === 'object' && wrapper.type) {
+      return wrapper;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function parseInvokeResponse(job: InvokeResult): KulalaResponseWrapper {
+  const wrapper = tryDecodeWrapper(job.stdout);
+  const first = wrapper?.type === 'responses' ? wrapper.data[0] : undefined;
+  const isPrompt = Boolean(first && isPromptResponse(first));
+
+  if (job.status !== 0 && !isPrompt) {
     throw new Error(
-      result.stderr?.trim() || `kulala-core exited with code ${result.status ?? 'unknown'}`,
+      job.stderr?.trim() || `kulala-core exited with code ${job.status ?? 'unknown'}`,
     );
   }
 
-  const stdout = result.stdout?.trim();
-  if (!stdout) {
-    throw new Error('kulala-core returned empty output');
+  if (!wrapper) {
+    throw new Error(job.stderr?.trim() || 'kulala-core returned empty or invalid output');
   }
 
-  return JSON.parse(stdout);
+  return wrapper;
 }
 
 export async function runHttp(
@@ -58,7 +94,7 @@ export async function runHttp(
 ): Promise<KulalaResponseWrapper> {
   await executablePath();
 
-  return invoke(
+  const job = invokeRaw(
     {
       action: 'run',
       content: options.content,
@@ -68,7 +104,27 @@ export async function runHttp(
       haltOnError: options.haltOnError,
     },
     invokeOptions,
-  ) as KulalaResponseWrapper;
+  );
+
+  return parseInvokeResponse(job);
+}
+
+export async function continueHttp(
+  options: { promptId: string; inputs: Array<{ id: string; value: string }> },
+  invokeOptions: InvokeOptions = {},
+): Promise<KulalaResponseWrapper> {
+  await executablePath();
+
+  const job = invokeRaw(
+    {
+      action: 'continue',
+      promptId: options.promptId,
+      inputs: options.inputs,
+    },
+    invokeOptions,
+  );
+
+  return parseInvokeResponse(job);
 }
 
 export async function environments(
@@ -77,14 +133,27 @@ export async function environments(
 ): Promise<KulalaEnvironmentCatalog> {
   await executablePath();
 
-  return invoke(
+  const job = invokeRaw(
     {
       action: 'environments',
       cwd: options.cwd,
       filepath: options.filepath,
     },
     invokeOptions,
-  ) as KulalaEnvironmentCatalog;
+  );
+
+  if (job.status !== 0) {
+    throw new Error(
+      job.stderr?.trim() || `kulala-core exited with code ${job.status ?? 'unknown'}`,
+    );
+  }
+
+  const raw = job.stdout.trim();
+  if (!raw) {
+    throw new Error('kulala-core returned empty output');
+  }
+
+  return JSON.parse(raw) as KulalaEnvironmentCatalog;
 }
 
 export async function curl(
@@ -93,17 +162,20 @@ export async function curl(
 ): Promise<KulalaResponseWrapper> {
   await executablePath();
 
-  return invoke(
+  const job = invokeRaw(
     {
       action: 'curl',
       argv: options.argv,
     },
     invokeOptions,
-  ) as KulalaResponseWrapper;
+  );
+
+  return parseInvokeResponse(job);
 }
 
 export const kulalaCore = {
   runHttp,
+  continueHttp,
   environments,
   curl,
 };

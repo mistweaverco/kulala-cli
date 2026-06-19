@@ -229,8 +229,6 @@ docker buildx build --push \
   -f Dockerfile .
 ```
 
-
-
 [logo]: https://raw.githubusercontent.com/mistweaverco/kulala-cli/main/assets/logo.svg
 [badge-npm]: https://img.shields.io/npm/v/@mistweaverco/kulala-cli?style=for-the-badge
 [link-npm]: https://www.npmjs.com/package/@mistweaverco/kulala-cli

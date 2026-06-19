@@ -86,6 +86,7 @@ export type KulalaPromptResponse = {
   promptId: string;
   promptType: string;
   message: string;
+  blockName?: string;
   inputs: Array<{
     id: string;
     label: string;
@@ -139,4 +140,6 @@ export type RunOptions = {
 export type RunFileResult = {
   filepath: string;
   response: KulalaResponseWrapper;
+  /** Human-readable output was already printed block-by-block during prompt handling. */
+  outputStreamed?: boolean;
 };
