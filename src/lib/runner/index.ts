@@ -21,6 +21,7 @@ import {
 import { setColorEnabled } from '../output/highlight';
 import { findFirstPromptItem, isPromptResponse } from '../output/shared';
 import { collectPromptInputs } from '../prompt';
+import { isInteractiveTerminal, withSpinner } from '../spinner';
 import { buildRunLimit, resolveSingleHttpFile } from './limit';
 import type { RunLimit } from '../kulala-core/types';
 
@@ -163,7 +164,11 @@ async function runFileWithPromptRetry(
     haltOnError: halt,
   };
 
-  const response = await kulalaCore.runHttp(runOptions, { cwd });
+  const response = isInteractiveTerminal()
+    ? await withSpinner(`Running requests in file ${relativePath}`, () =>
+        kulalaCore.runHttp(runOptions, { cwd }),
+      )
+    : await kulalaCore.runHttp(runOptions, { cwd });
   const promptItem = response.type === 'responses' ? findFirstPromptItem(response) : undefined;
 
   if (!promptItem) {
@@ -196,10 +201,11 @@ async function runFileWithPromptRetry(
     };
   }
 
-  const continued = await kulalaCore.continueHttp(
-    { promptId: promptItem.promptId, inputs },
-    { cwd },
-  );
+  const continued = isInteractiveTerminal()
+    ? await withSpinner(`Running requests in file ${relativePath}`, () =>
+        kulalaCore.continueHttp({ promptId: promptItem.promptId, inputs }, { cwd }),
+      )
+    : await kulalaCore.continueHttp({ promptId: promptItem.promptId, inputs }, { cwd });
 
   if (!continueSucceeded(continued)) {
     let err: string | undefined;

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { chmodSync, createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
+import { createSpinner } from '../spinner';
 import { KULALA_CORE_VERSION } from '../../versions/backend';
 
 const BINARY_NAME = 'kulala-core';
@@ -64,12 +65,6 @@ function makeExecutable(filePath: string): void {
   }
 }
 
-const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const;
-
-function isInteractiveTerminal(): boolean {
-  return process.stderr.isTTY === true;
-}
-
 type DownloadProgress = {
   start(message: string): void;
   succeed(message: string): void;
@@ -77,42 +72,18 @@ type DownloadProgress = {
 };
 
 function createDownloadProgress(): DownloadProgress {
-  let timer: ReturnType<typeof setInterval> | undefined;
-  let frame = 0;
-  let message = '';
-
-  const clearLine = (): void => {
-    if (timer) {
-      clearInterval(timer);
-      timer = undefined;
-    }
-    if (isInteractiveTerminal()) {
-      process.stderr.write('\r\x1b[K');
-    }
-  };
+  const spinner = createSpinner();
 
   return {
-    start(msg: string) {
-      message = msg;
-      if (!isInteractiveTerminal()) {
-        console.error(message);
-        return;
-      }
-
-      const render = (): void => {
-        process.stderr.write(`\r${SPINNER_FRAMES[frame]} ${message}`);
-        frame = (frame + 1) % SPINNER_FRAMES.length;
-      };
-
-      render();
-      timer = setInterval(render, 80);
+    start(message: string) {
+      spinner.start(message);
     },
-    succeed(msg: string) {
-      clearLine();
-      console.error(msg);
+    succeed(message: string) {
+      spinner.stop();
+      console.error(message);
     },
     fail() {
-      clearLine();
+      spinner.stop();
     },
   };
 }
