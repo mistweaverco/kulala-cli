@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { downloader } from '../downloader';
 import { isPromptResponse } from '../output/shared';
 import type { KulalaEnvironmentCatalog, KulalaResponseWrapper, RunOptions } from './types';
@@ -27,29 +27,42 @@ async function executablePath(): Promise<string> {
   return cachedExecutable;
 }
 
-function invokeRaw(payload: Record<string, unknown>, options: InvokeOptions = {}): InvokeResult {
+function invokeRaw(
+  payload: Record<string, unknown>,
+  options: InvokeOptions = {},
+): Promise<InvokeResult> {
   const exe = cachedExecutable;
   if (!exe) {
-    throw new Error('kulala-core executable not resolved');
+    return Promise.reject(new Error('kulala-core executable not resolved'));
   }
 
-  const result = spawnSync(exe, [], {
-    input: `${JSON.stringify(payload)}\n`,
-    encoding: 'utf-8',
-    maxBuffer: 50 * 1024 * 1024,
-    cwd: options.cwd,
-    env: process.env,
+  return new Promise((resolve, reject) => {
+    const child = spawn(exe, [], {
+      cwd: options.cwd,
+      env: process.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.setEncoding('utf-8');
+    child.stderr.setEncoding('utf-8');
+    child.stdout.on('data', (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+
+    child.on('error', reject);
+    child.on('close', (status) => {
+      resolve({ stdout, stderr, status });
+    });
+
+    child.stdin.write(`${JSON.stringify(payload)}\n`);
+    child.stdin.end();
   });
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  return {
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
-    status: result.status,
-  };
 }
 
 export function tryDecodeWrapper(stdout: string): KulalaResponseWrapper | undefined {
@@ -94,7 +107,7 @@ export async function runHttp(
 ): Promise<KulalaResponseWrapper> {
   await executablePath();
 
-  const job = invokeRaw(
+  const job = await invokeRaw(
     {
       action: 'run',
       content: options.content,
@@ -115,7 +128,7 @@ export async function continueHttp(
 ): Promise<KulalaResponseWrapper> {
   await executablePath();
 
-  const job = invokeRaw(
+  const job = await invokeRaw(
     {
       action: 'continue',
       promptId: options.promptId,
@@ -133,7 +146,7 @@ export async function environments(
 ): Promise<KulalaEnvironmentCatalog> {
   await executablePath();
 
-  const job = invokeRaw(
+  const job = await invokeRaw(
     {
       action: 'environments',
       cwd: options.cwd,
@@ -162,7 +175,7 @@ export async function curl(
 ): Promise<KulalaResponseWrapper> {
   await executablePath();
 
-  const job = invokeRaw(
+  const job = await invokeRaw(
     {
       action: 'curl',
       argv: options.argv,
