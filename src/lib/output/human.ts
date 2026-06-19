@@ -305,6 +305,13 @@ function formatWrapper(wrapper: KulalaResponseWrapper, requestFile?: string): st
   return items.map((entry) => formatItem(entry, requestFile)).join('\n\n');
 }
 
+export function printResponseItems(filepath: string, items: KulalaResponseItem[]): void {
+  if (items.length === 0) {
+    return;
+  }
+  console.log(formatWrapper({ type: 'responses', data: items }, filepath));
+}
+
 export function printHumanReadable(results: RunFileResult[]): void {
   const blocks = results.map((result) => formatWrapper(result.response, result.filepath));
   console.log(blocks.join('\n\n'));

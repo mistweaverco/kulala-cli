@@ -12,7 +12,18 @@ import type {
 export function isPromptResponse(
   item: KulalaResponseItem,
 ): item is Extract<KulalaResponseItem, { prompt: true }> {
-  return 'prompt' in item && item.prompt === true;
+  if ('prompt' in item && item.prompt === true) {
+    return true;
+  }
+  const maybe = item as { promptId?: string; promptType?: string };
+  return Boolean(maybe.promptId && maybe.promptType);
+}
+
+export function findFirstPromptItem(
+  wrapper: KulalaResponseItem[] | { type: string; data: KulalaResponseItem[] },
+): Extract<KulalaResponseItem, { prompt: true }> | undefined {
+  const items = Array.isArray(wrapper) ? wrapper : wrapper.data;
+  return items.find((item) => isPromptResponse(item));
 }
 
 export function isSkippedResponse(

@@ -1,6 +1,7 @@
 export {
   printHumanReadable,
   printJson,
+  printResponseItems,
   countResults,
   filterFailedResults,
   isResponseSuccessful,
