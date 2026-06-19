@@ -1,4 +1,5 @@
 import { kulalaCore } from '../kulala-core';
+import { isInteractiveTerminal, withSpinner } from '../spinner';
 import { countResults, printHumanReadable, printJson } from '../output';
 import { setColorEnabled } from '../output/highlight';
 import type { RunFileResult } from '../kulala-core/types';
@@ -59,7 +60,9 @@ export async function curl(argv: string[], options: CurlCommandOptions = {}): Pr
     process.exit(1);
   }
 
-  const response = await kulalaCore.curl({ argv: curlArgv });
+  const response = isInteractiveTerminal()
+    ? await withSpinner('Running request', () => kulalaCore.curl({ argv: curlArgv }))
+    : await kulalaCore.curl({ argv: curlArgv });
   const result: RunFileResult = {
     filepath: formatCurlLabel(curlArgv),
     response,
